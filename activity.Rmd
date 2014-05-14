@@ -1,0 +1,141 @@
+Coursera - Reproducible Data Analysis - Assignment 1
+==================================================
+
+## Load and preprocess data
+
+```{r load}
+unzip('activity.zip')
+data <- read.csv('activity.csv', 
+                 colClasses = c('numeric','character','numeric'))
+head(data,3)
+```
+
+-------
+## Analysis the steps taken per day
+
+```{r daystep, fig.width=5,fig.height=5}
+# caculate the sum of steps taken each day
+daystep <- tapply(data$steps, data$date,sum, na.rm = T)
+
+# result
+mean <- mean(daystep)
+median <- as.integer(median(daystep)) # result show as integer
+hist(daystep, col = 'blue',
+     xlab = 'total steps each day',ylab = 'number of days')
+```
+
+**mean** total number of steps taken per day: `r mean`
+
+**median** total number of steps taken per day: `r median`
+
+
+-----
+## Analysis average daily activity pattern
+
+```{r intervalstep, fig.width=5,fig.height=5}
+# analysis the steps by intervals
+intervalstep <- tapply(data$steps, data$interval, mean, na.rm = T)
+
+# result
+max <- max(intervalstep)
+plot(names(intervalstep),intervalstep, type= 'l', col = 'blue' ,
+     xlab = '5-minute interval',   
+     ylab = 'average steps across all day',   
+     main = 'average daily activity pattern')
+```
+
+**maximum** average number of steps among all intervals: `r max` steps
+
+-----
+## Imputing missing values
+
+### There are a number of days/intervals where data are missing.
+
+```{r missingvalue, result = 'hide'}
+bad <- is.na(data$steps)
+num <- sum(bad)
+```
+**number of missing values** is: `r num`
+
+### solution: impute missing values with average steps at that specific interval
+
+```{r impute}
+# get the index and the specific interval of missing values
+badidx <- which(bad)
+badinterval <- data[bad,]$interval
+
+# impute and fill in
+gooddata <- data
+imputestep <- numeric()
+n = 1
+for(idx in badidx){
+    itv <- badinterval[n]
+    impute <- intervalstep[[as.character(itv)]]
+    gooddata[idx,]$steps <- impute
+    n <- n + 1  
+}
+head(gooddata,3)
+```
+
+### re-analysis the steps taken per day
+```{r re-analysis, fig.width=5,fig.height=5}
+# analysis the steps by intervals
+daystep2 <- tapply(gooddata$steps, gooddata$date,sum)
+
+# result
+mean2 <- as.integer(mean(daystep2)) # result show as integer
+median2 <- as.integer(median(daystep2)) 
+hist(daystep, col = 'blue',
+     xlab = 'total steps each day',ylab = 'number of days',
+     main = 'histgram of daystep with imputed data')
+```
+
+Results differ from the estimates on unimputed data.
+
+**new mean** of total number of steps taken per day: `r mean2`
+
+**new median** of total number of steps taken per day: `r median2`
+
+  
+
+  
+## differences in activity patterns between weekdays and weekends
+
+```{r weekdays,results='hide'}
+# get weekdays in English
+Sys.setlocale('LC_TIME','C') # set weekday names in English
+gooddata$date <- as.Date(gooddata$date)
+gooddata$weekdays <- weekdays(gooddata$date)
+```
+```{r weekends}
+# if it's weekend
+weekends <- character()
+for(d in 1:nrow(gooddata)){
+  day <- gooddata[d,]$weekdays
+  if(day %in% c('Sunday','Satruday')){
+      weekends[d] <- 'weekend'
+  }else{
+      weekends[d] <- 'weekday'
+  }
+}
+gooddata$weekends <- as.factor(weekends)
+
+# split into weekday and weekend data.frame
+w <- split(gooddata,gooddata$weekends)
+dfweekday <- w$weekday
+dfweekend <- w$weekend
+
+# caculate average steps for each interval
+itvstep.weekday <- tapply(dfweekday$steps, dfweekday$interval, mean)
+itvstep.weekend <- tapply(dfweekend$steps, dfweekend$interval, mean)
+
+# plot
+par(mfrow=c(2,1),mar = c(4,4,1,2),oma = c(2,2,3,1))
+plot(names(itvstep.weekday),itvstep.weekday, type= 'l',
+     xlab = '', ylab = 'daily steps',col = 'blue')
+legend("topright",legend='weekday')
+plot(names(itvstep.weekend),itvstep.weekend, type= 'l',
+     xlab = 'interval', ylab = 'daily steps',col = 'blue')
+legend("topright",legend='weekend')
+title(main = 'average daily activity pattern at each interval',outer = T)
+```
